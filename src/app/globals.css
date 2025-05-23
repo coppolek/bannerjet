@@ -8,10 +8,10 @@ body {
 
 @layer base {
   :root {
-    --background: 220 13% 95%; /* Light Gray */
+    --background: 0 0% 100%; /* White */
     --foreground: 220 10% 20%; /* Dark Gray for text */
 
-    --muted: 220 13% 88%;
+    --muted: 220 13% 95%; /* Light Gray - was 88%, adjusted for better contrast with white bg */
     --muted-foreground: 220 10% 40%;
 
     --popover: 0 0% 100%;
@@ -20,8 +20,8 @@ body {
     --card: 0 0% 100%;
     --card-foreground: 220 10% 20%;
 
-    --border: 220 13% 80%;
-    --input: 220 13% 85%;
+    --border: 220 13% 88%; /* Was 80%, lightened slightly */
+    --input: 220 13% 92%; /* Was 85%, lightened slightly */
 
     --primary: 231 48% 48%; /* Deep Indigo */
     --primary-foreground: 0 0% 100%; /* White */
