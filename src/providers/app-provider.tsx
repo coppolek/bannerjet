@@ -70,12 +70,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       setIsLoadingAuth(true); 
       setIsLoadingAdminStatus(true);
-      setIsAdmin(false);
+      setIsAdmin(false); // Reset admin status on auth change
 
       if (currentUser) {
         setUser(currentUser);
         setUserId(currentUser.uid);
         setUserEmail(currentUser.email);
+        console.log(`[AppProvider] User authenticated: ${currentUser.uid}, Email: ${currentUser.email}`);
 
         const userDocPath = `users/${currentUser.uid}`;
         console.log(`[AppProvider] Attempting to fetch admin status for user: ${currentUser.uid} from path: ${userDocPath}`);
@@ -89,15 +90,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.log(`[AppProvider] Admin status for ${currentUser.uid} set to: ${userData?.isAdmin === true}`);
           } else {
             setIsAdmin(false);
-            console.log(`[AppProvider] No user profile document found at ${userDocPath} for ${currentUser.uid}. Assuming not admin.`);
+            console.warn(`[AppProvider] User profile document NOT found at ${userDocPath} for ${currentUser.uid}. Assuming not admin.`);
+            // It's possible the profile document needs to be created if it wasn't during signup (e.g. for an existing auth user logging in for the first time to this app version)
+            // Or if the signup profile creation failed.
+            // For now, we assume not admin if profile doc is missing.
           }
         } catch (error) {
-          console.error(`[AppProvider] Error fetching admin status from ${userDocPath} for user ${currentUser.uid}:`, error);
-          toast({ variant: "destructive", title: "Error Fetching User Role", description: `Could not determine admin status. Firestore Error: ${(error as Error).message}` });
+          const firebaseError = error as any; // Cast to any to access potential code property
+          console.error(`[AppProvider] Error fetching admin status for user ${currentUser.uid} from path ${userDocPath}. Code: ${firebaseError.code}. Message: ${firebaseError.message}. Full error:`, error);
+          toast({ variant: "destructive", title: "Error Fetching User Role", description: `Could not determine admin status. Error: ${firebaseError.message}` });
           setIsAdmin(false); 
         }
         setIsLoadingAdminStatus(false);
         
+        // Logic for handling shared content from URL params
         const urlParams = new URLSearchParams(window.location.search);
         const sharedAiContentId = urlParams.get('sharedAiContentId');
         const sharedAmazonContentId = urlParams.get('sharedAmazonContentId');
@@ -129,8 +135,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setUserId(null);
         setUserEmail(null);
-        setIsAdmin(false);
-        setIsLoadingAdminStatus(false);
+        setIsAdmin(false); // Ensure isAdmin is false if no user
+        setIsLoadingAdminStatus(false); // No admin status to load if no user
         console.log("[AppProvider] No current user or user signed out.");
       }
       setIsLoadingAuth(false);
@@ -142,64 +148,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Keep dependencies minimal, auth state changes should be the main driver
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
-  const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
+  const closeAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+    // setError(null); // Reset error when closing modal, if error state was managed here
+  }, []);
 
   const handleSignUp = async (email: string, password: string): Promise<{ success: boolean; error?: string | null; userCredential?: UserCredential | null }> => {
     try {
       const userCredential = await emailPasswordSignUp(firebaseAuth, email, password);
+      console.log("[AppProvider] SignUp successful for email:", email, "UID:", userCredential.user.uid);
       toast({ title: "Registration Successful!", description: "You are now logged in." });
       
+      // Ensure user profile document is created in Firestore
       try {
         const userDocRef = doc(firebaseDb, "users", userCredential.user.uid);
         const docSnap = await getDoc(userDocRef);
         if (!docSnap.exists()) {
-            console.log(`[AppProvider] User profile for ${userCredential.user.uid} does not exist. Attempting to create.`);
+            console.log(`[AppProvider] User profile for ${userCredential.user.uid} does not exist. Attempting to create with isAdmin: false.`);
             await setFirestoreDoc(userDocRef, {
               email: userCredential.user.email,
-              isAdmin: false, 
-              createdAt: serverTimestamp() as Timestamp
+              isAdmin: false, // Default new users to not be admins
+              createdAt: serverTimestamp() as Timestamp // Firestore Server Timestamp
             });
             console.log("[AppProvider] User profile created in Firestore for:", userCredential.user.uid);
         } else {
             console.log("[AppProvider] User profile already exists for:", userCredential.user.uid, " Skipping default profile creation.");
         }
       } catch (profileError) {
-        console.error("[AppProvider] Error ensuring user profile in Firestore:", profileError);
-        toast({ variant: "destructive", title: "User Profile Error", description: `Could not create or verify user profile during sign up. Firestore Error: ${(profileError as Error).message}`});
+        const fbProfileError = profileError as any;
+        console.error(`[AppProvider] Error ensuring user profile in Firestore for ${userCredential.user.uid}. Code: ${fbProfileError.code}. Message: ${fbProfileError.message}. Full error:`, profileError);
+        toast({ variant: "destructive", title: "User Profile Error", description: `Could not create or verify user profile during sign up. Error: ${fbProfileError.message}`});
+        // Continue with signup success as auth worked, profile is secondary here for immediate login
       }
       closeAuthModal();
-      return { success: true, userCredential };
+      return { success: true, userCredential, error: null };
     } catch (error: any) {
-      console.error("[AppProvider] SignUp Error:", error);
+      console.error("[AppProvider] SignUp Error:", error.code, error.message, error);
       const errorMessage = error.message || "Please try again.";
       toast({ variant: "destructive", title: "Registration Failed", description: errorMessage });
-      return { success: false, error: errorMessage };
+      return { success: false, error: errorMessage, userCredential: null };
     }
   };
   
   const handleSignIn = async (email: string, password: string): Promise<{ success: boolean; error?: string | null; userCredential?: UserCredential | null }> => {
     try {
       const userCredential = await emailPasswordSignIn(firebaseAuth, email, password);
+      console.log("[AppProvider] SignIn successful for email:", email, "UID:", userCredential.user.uid);
       toast({ title: "Login Successful!", description: `Welcome back!` });
       closeAuthModal(); 
-      return { success: true, userCredential };
+      return { success: true, userCredential, error: null };
     } catch (error: any) {
-      console.error("[AppProvider] SignIn Error:", error);
+      console.error("[AppProvider] SignIn Error:", error.code, error.message, error);
       const errorMessage = error.message || "Invalid credentials or user not found.";
       toast({ variant: "destructive", title: "Login Failed", description: errorMessage });
-      return { success: false, error: errorMessage };
+      return { success: false, error: errorMessage, userCredential: null };
     }
   };
 
   const handleSignOut = async () => {
     try {
       await appSignOut(firebaseAuth);
+      console.log("[AppProvider] User signed out successfully.");
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
+      // State (user, userId, userEmail, isAdmin) will be reset by onAuthStateChanged
     } catch (error: any) {
-      console.error("[AppProvider] SignOut Error:", error);
+      console.error("[AppProvider] SignOut Error:", error.code, error.message, error);
       toast({ variant: "destructive", title: "Sign Out Failed", description: error.message || "Please try again." });
     }
   };
