@@ -3,7 +3,7 @@
 
 import type { FirebaseApp } from "firebase/app";
 import type { Auth, User } from "firebase/auth";
-import type { Firestore }import "firebase/firestore";
+import type { Firestore } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { firebaseApp, auth as firebaseAuth, db as firebaseDb, APP_ID } from "@/lib/firebase-config";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
