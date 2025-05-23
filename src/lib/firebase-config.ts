@@ -9,27 +9,33 @@ const firebaseConfig = {
   apiKey: "AIzaSyBFTqiC1gXsIHR2pnA9Qxbt3DEQ5QSb5XQ",
   authDomain: "banner-c9919.firebaseapp.com",
   projectId: "banner-c9919",
-  storageBucket: "banner-c9919.appspot.com", // Corrected from .firebasestorage.app
+  storageBucket: "banner-c9919.appspot.com", // Corrected from .firebasestorage.app, ensure this is right for your project
   messagingSenderId: "957263707086",
   appId: "1:957263707086:web:151aec04a33e92eabd499f",
   measurementId: "G-KD707SRJRM"
 };
 
 // Check if critical Firebase config values are present (from hardcoded config)
-if (typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() === "" ||
-    typeof firebaseConfig.projectId !== 'string' || firebaseConfig.projectId.trim() === "") {
+if (
+  typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() === "" ||
+  typeof firebaseConfig.projectId !== 'string' || firebaseConfig.projectId.trim() === "" ||
+  typeof firebaseConfig.authDomain !== 'string' || firebaseConfig.authDomain.trim() === ""
+) {
   const errorMessage = `
     ======================================================================================
     CRITICAL Firebase Configuration Error (Hardcoded):
-    The hardcoded firebaseConfig object is missing a valid apiKey or projectId.
+    The hardcoded firebaseConfig object is missing or has an empty apiKey, projectId, or authDomain.
     - API Key Value: '${firebaseConfig.apiKey}'
     - Project ID Value: '${firebaseConfig.projectId}'
+    - Auth Domain Value: '${firebaseConfig.authDomain}'
 
     Please ensure the hardcoded firebaseConfig in src/lib/firebase-config.ts is correct.
-    Firebase CANNOT be initialized with these values. The application will likely fail.
+    Firebase CANNOT be initialized properly for Authentication with these values.
     ======================================================================================`;
   console.error(errorMessage);
   // Potentially throw an error here or handle appropriately for your app's lifecycle
+} else {
+  console.log("[Firebase Config Check] Hardcoded firebaseConfig seems to have apiKey, projectId, and authDomain populated.");
 }
 
 // Initialize Firebase App (singleton pattern)
@@ -37,7 +43,7 @@ function createFirebaseApp(): FirebaseApp {
   try {
     return getApp();
   } catch {
-    console.log("[Firebase Initialization Attempt] Initializing with hardcoded config:", JSON.parse(JSON.stringify(firebaseConfig)));
+    console.log("[Firebase Initialization Attempt in createFirebaseApp catch block] Initializing with hardcoded config:", JSON.parse(JSON.stringify(firebaseConfig)));
     return initializeApp(firebaseConfig);
   }
 }
@@ -48,8 +54,14 @@ const db: Firestore = getFirestore(firebaseApp);
 let analytics: Analytics | null = null;
 
 if (typeof window !== 'undefined') {
-  analytics = getAnalytics(firebaseApp);
+  try {
+    analytics = getAnalytics(firebaseApp);
+    console.log("[Firebase Analytics] Initialized successfully.");
+  } catch (error) {
+    console.error("[Firebase Analytics] Failed to initialize:", error);
+  }
 }
+
 
 // Export the App ID from the hardcoded config
 export const APP_ID = firebaseConfig.appId;
@@ -58,7 +70,7 @@ export const APP_ID = firebaseConfig.appId;
 const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
 
 if (process.env.NODE_ENV === "development") {
-  console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
+  console.log('Using Firebase Emulators (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
 }
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined" && useEmulator === "true") {
