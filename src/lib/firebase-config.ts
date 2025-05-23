@@ -4,18 +4,18 @@ import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
 import { getAnalytics, type Analytics } from "firebase/analytics";
 
-// Your web app's Firebase configuration (as provided by user)
+// Your web app's Firebase configuration (hardcoded based on user input and screenshots)
 const firebaseConfig = {
   apiKey: "AIzaSyBFTqiC1gXsIHR2pnA9Qxbt3DEQ5QSb5XQ",
   authDomain: "banner-c9919.firebaseapp.com",
   projectId: "banner-c9919",
-  storageBucket: "banner-c9919.appspot.com", // Corrected from .firebasestorage.app, ensure this is right for your project
+  storageBucket: "banner-c9919.appspot.com", // Standard format
   messagingSenderId: "957263707086",
   appId: "1:957263707086:web:151aec04a33e92eabd499f",
   measurementId: "G-KD707SRJRM"
 };
 
-// Check if critical Firebase config values are present (from hardcoded config)
+// CRITICAL Pre-Initialization Check for hardcoded values
 if (
   typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() === "" ||
   typeof firebaseConfig.projectId !== 'string' || firebaseConfig.projectId.trim() === "" ||
