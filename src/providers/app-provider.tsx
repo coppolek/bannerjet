@@ -8,7 +8,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useCa
 import { firebaseApp, auth as firebaseAuth, db as firebaseDb, APP_ID } from "@/lib/firebase-config";
 import { onAuthStateChanged } from "firebase/auth";
 import { Toaster } from "@/components/ui/toaster";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc as setFirestoreDoc } from "firebase/firestore";
 import type { BannerData, AiContentData, AmazonContentData } from "@/lib/types";
 import { emailPasswordSignUp, emailPasswordSignIn, appSignOut } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
@@ -62,20 +62,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log("[AppProvider] useEffect for onAuthStateChanged mounting.");
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (currentUser) => {
-      setIsLoadingAuth(true); // Set loading true at the start of auth change
-      setIsLoadingAdminStatus(true); // Also set admin status loading true
       console.log(
         "[AppProvider] onAuthStateChanged triggered. currentUser UID:",
         currentUser ? currentUser.uid : "null",
         "Email:", currentUser ? currentUser.email : "N/A"
       );
+      setIsLoadingAuth(true); 
+      setIsLoadingAdminStatus(true);
 
       if (currentUser) {
         setUser(currentUser);
         setUserId(currentUser.uid);
         setUserEmail(currentUser.email);
 
-        // Fetch admin status
         try {
           console.log(`[AppProvider] Fetching admin status for user: ${currentUser.uid}`);
           const userDocRef = doc(firebaseDb, "users", currentUser.uid);
@@ -90,19 +89,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("[AppProvider] Error fetching admin status:", error);
-          setIsAdmin(false); // Default to not admin on error
+          setIsAdmin(false); 
           toast({ variant: "destructive", title: "Error fetching user role", description: "Could not determine admin status." });
         }
         setIsLoadingAdminStatus(false);
         
-        // Shared content loading logic
         const urlParams = new URLSearchParams(window.location.search);
         const sharedAiContentId = urlParams.get('sharedAiContentId');
         const sharedAmazonContentId = urlParams.get('sharedAmazonContentId');
 
         if (sharedAiContentId) {
           try {
-            const sharedAiContentDocRef = doc(firebaseDb, `artifacts/${APP_ID}/public/sharedAiContent`, sharedAiContentId);
+            // Simplified path: publicSharedAiContent/{contentId}
+            const sharedAiContentDocRef = doc(firebaseDb, "publicSharedAiContent", sharedAiContentId);
             const sharedAiContentSnap = await getDoc(sharedAiContentDocRef);
             if (sharedAiContentSnap.exists()) {
               setInitialAiContent(sharedAiContentSnap.data() as AiContentData);
@@ -113,7 +112,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           } catch (error) { console.error("[AppProvider] Error loading shared AI content:", error); }
         } else if (sharedAmazonContentId) {
           try {
-            const sharedAmazonContentDocRef = doc(firebaseDb, `artifacts/${APP_ID}/public/sharedAmazonContent`, sharedAmazonContentId);
+            // Simplified path: publicSharedAmazonContent/{contentId}
+            const sharedAmazonContentDocRef = doc(firebaseDb, "publicSharedAmazonContent", sharedAmazonContentId);
             const sharedAmazonContentSnap = await getDoc(sharedAmazonContentDocRef);
             if (sharedAmazonContentSnap.exists()) {
               setInitialAmazonContent(sharedAmazonContentSnap.data() as AmazonContentData);
@@ -124,23 +124,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           } catch (error) { console.error("[AppProvider] Error loading shared Amazon AI content:", error); }
         }
       } else {
-        // User is signed out or no user
         setUser(null);
         setUserId(null);
         setUserEmail(null);
         setIsAdmin(false);
-        setIsLoadingAdminStatus(false); // No user, so admin status check is complete
-        console.log("[AppProvider] No current user or user signed out. isLoadingAuth will be set to false.");
+        setIsLoadingAdminStatus(false);
+        console.log("[AppProvider] No current user or user signed out.");
       }
-      setIsLoadingAuth(false); // Auth processing done
-      console.log(`[AppProvider] Auth state processed. isLoadingAuth: false, isLoadingAdminStatus: ${isLoadingAdminStatus}`);
+      setIsLoadingAuth(false);
+      console.log(`[AppProvider] Auth state processed. isLoadingAuth: ${isLoadingAuth}, isLoadingAdminStatus: ${isLoadingAdminStatus}, userId: ${userId}`);
     });
 
     return () => {
       console.log("[AppProvider] Unsubscribing from onAuthStateChanged.");
       unsubscribe();
     };
-  }, [toast]); // Added toast to dependency array as it's used in the effect
+  }, [toast]); // Removed isLoadingAuth, isLoadingAdminStatus, userId from deps as they are set inside
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
@@ -148,11 +147,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleSignUp = async (email: string, password: string): Promise<UserCredential | null> => {
     try {
       const userCredential = await emailPasswordSignUp(firebaseAuth, email, password);
-      toast({ title: "Registration Successful!", description: "You can now log in." });
-      // Note: onAuthStateChanged will handle setting user, admin status, and closing modal if needed
-      // We can optimistically close it or wait for onAuthStateChanged. For now, we let onAuthStateChanged do its work.
-      // If you want to create a user profile document on sign up, this is where you'd do it.
-      // e.g., await setDoc(doc(firebaseDb, "users", userCredential.user.uid), { email: userCredential.user.email, isAdmin: false, createdAt: serverTimestamp() });
+      toast({ title: "Registration Successful!", description: "You are now logged in." });
+      // Create a user profile document in Firestore (optional, but good for isAdmin or other profile info)
+      try {
+        await setFirestoreDoc(doc(firebaseDb, "users", userCredential.user.uid), {
+          email: userCredential.user.email,
+          isAdmin: false, // Default to not admin
+          createdAt: serverTimestamp()
+        });
+        console.log("[AppProvider] User profile created in Firestore for:", userCredential.user.uid);
+      } catch (profileError) {
+        console.error("[AppProvider] Error creating user profile in Firestore:", profileError);
+        // Not a fatal error for signup, so just log it
+      }
+      closeAuthModal(); // Close modal on successful sign-up
       return userCredential;
     } catch (error: any) {
       console.error("[AppProvider] SignUp Error:", error);
@@ -164,13 +172,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleSignIn = async (email: string, password: string): Promise<UserCredential | null> => {
     try {
       const userCredential = await emailPasswordSignIn(firebaseAuth, email, password);
-      // onAuthStateChanged will be triggered, which will handle setting user, admin status, etc.
-      // It will also close the modal via the effect if successful.
       toast({ title: "Login Successful!", description: `Welcome back, ${userCredential.user.email}!` });
-      closeAuthModal(); // Close modal immediately on successful sign-in
+      closeAuthModal(); 
       return userCredential;
-    } catch (error: any)
-       {
+    } catch (error: any) {
       console.error("[AppProvider] SignIn Error:", error);
       toast({ variant: "destructive", title: "Login Failed", description: error.message || "Invalid credentials or user not found." });
       return null;
@@ -181,7 +186,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await appSignOut(firebaseAuth);
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
-      // onAuthStateChanged will handle clearing user, admin status, etc.
     } catch (error: any) {
       console.error("[AppProvider] SignOut Error:", error);
       toast({ variant: "destructive", title: "Sign Out Failed", description: error.message || "Please try again." });
@@ -228,5 +232,3 @@ export function useApp() {
   }
   return context;
 }
-
-    

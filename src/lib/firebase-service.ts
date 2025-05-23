@@ -1,5 +1,5 @@
 
-import { db, APP_ID } from '@/lib/firebase-config';
+import { db } from '@/lib/firebase-config';
 import type { Auth, UserCredential } from 'firebase/auth';
 import { 
   createUserWithEmailAndPassword, 
@@ -28,7 +28,8 @@ export const saveBannerToFirestore = async (userId: string, bannerData: BannerDa
   const sanitizedBannerData = Object.fromEntries(
     Object.entries(bannerData).filter(([, value]) => value !== undefined)
   );
-  const bannersCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/banners`);
+  // Simplified path: users/{userId}/banners
+  const bannersCollectionRef = collection(db, `users/${userId}/banners`);
   const docRef = await addDoc(bannersCollectionRef, { 
     ...sanitizedBannerData, 
     createdAt: serverTimestamp() 
@@ -42,12 +43,11 @@ export const getUserBanners = (
   onError: (error: Error) => void
 ): (() => void) => {
   if (!userId) {
-    // Non chiamare onError qui, semplicemente non recuperare i banner se non c'è userId
-    // La UI gestirà lo stato di "utente non loggato"
-    callback([]); // Restituisce un array vuoto se non c'è utente
+    callback([]); 
     return () => {};
   }
-  const userBannersCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/banners`);
+  // Simplified path: users/{userId}/banners
+  const userBannersCollectionRef = collection(db, `users/${userId}/banners`);
   const q = query(userBannersCollectionRef, orderBy("createdAt", "desc"));
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -70,35 +70,42 @@ export const getUserBanners = (
 
 export const deleteBannerFromFirestore = async (userId: string, bannerId: string): Promise<void> => {
   if (!userId) throw new Error("User not authenticated.");
-  const bannerDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/banners`, bannerId);
+  // Simplified path: users/{userId}/banners/{bannerId}
+  const bannerDocRef = doc(db, `users/${userId}/banners`, bannerId);
   await deleteDoc(bannerDocRef);
 };
 
 // --- Shared Content ---
 export const shareAiContentToFirestore = async (userId: string, contentData: Omit<AiContentData, 'id' | 'sharedBy' | 'sharedAt'>): Promise<string> => {
+  console.log("[firebase-service] shareAiContentToFirestore called. User ID:", userId);
   if (!userId) {
     console.error("[firebase-service] shareAiContentToFirestore called without userId.");
     throw new Error("User not authenticated for sharing AI content.");
   }
-  const sharedAiContentCollectionRef = collection(db, `artifacts/${APP_ID}/public/sharedAiContent`);
+  // Simplified path: publicSharedAiContent
+  const sharedAiContentCollectionRef = collection(db, "publicSharedAiContent");
   const docRef = await addDoc(sharedAiContentCollectionRef, {
     ...contentData,
-    sharedBy: userId,
+    sharedBy: userId, 
     sharedAt: serverTimestamp(),
   });
+  console.log("[firebase-service] AI Content shared to Firestore. Doc ID:", docRef.id);
   return docRef.id;
 };
 
 export const shareAmazonContentToFirestore = async (userId: string, contentData: Omit<AmazonContentData, 'id' | 'sharedBy' | 'sharedAt'>): Promise<string> => {
+  console.log("[firebase-service] shareAmazonContentToFirestore called. User ID:", userId);
   if (!userId) {
     console.error("[firebase-service] shareAmazonContentToFirestore called without userId.");
     throw new Error("User not authenticated for sharing Amazon content.");
   }
-  const sharedAmazonContentCollectionRef = collection(db, `artifacts/${APP_ID}/public/sharedAmazonContent`);
+  // Simplified path: publicSharedAmazonContent
+  const sharedAmazonContentCollectionRef = collection(db, "publicSharedAmazonContent");
   const docRef = await addDoc(sharedAmazonContentCollectionRef, {
     ...contentData,
     sharedBy: userId,
     sharedAt: serverTimestamp(),
   });
+  console.log("[firebase-service] Amazon Content shared to Firestore. Doc ID:", docRef.id);
   return docRef.id;
 };
