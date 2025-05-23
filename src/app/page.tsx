@@ -8,7 +8,7 @@ import { AiFeaturesPanel } from '@/components/ai-features-panel';
 import { SavedBannersPanel } from '@/components/saved-banners-panel';
 import { ShareModal } from '@/components/share-modal';
 import { AuthModal } from '@/components/auth-modal';
-import { SocialLinksEditor } from '@/components/social-links-editor'; // Import new component
+// import { SocialLinksEditor } from '@/components/social-links-editor'; // Removed import
 import { Button } from "@/components/ui/button";
 import { Loader2, LogIn, LogOut, AlertTriangle, ShieldCheck, UserCircle } from "lucide-react";
 import { useApp } from "@/providers/app-provider";
@@ -49,7 +49,6 @@ export default function BannerGeneratorPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [currentShareUrl, setCurrentShareUrl] = useState('');
   
-  // Authentication status display for debugging
   const [authStatusMessage, setAuthStatusMessage] = useState("Checking authentication...");
   const [currentUserUID, setCurrentUserUID] = useState<string | null>(null);
 
@@ -58,13 +57,13 @@ export default function BannerGeneratorPage() {
       setAuthStatusMessage("Authentication loading...");
       setCurrentUserUID(null);
     } else if (userId) {
-      setAuthStatusMessage("Authenticated");
+      setAuthStatusMessage(`Authenticated (User ID: ${userId.substring(0,10)}... Email: ${userEmail || 'N/A'})`);
       setCurrentUserUID(userId);
     } else {
       setAuthStatusMessage("Not Authenticated. Sharing and saving will be disabled.");
       setCurrentUserUID(null);
     }
-  }, [isLoadingAuth, userId]);
+  }, [isLoadingAuth, userId, userEmail]);
 
 
   useEffect(() => {
@@ -212,9 +211,9 @@ export default function BannerGeneratorPage() {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 p-4 md:p-8">
       <header className="flex flex-col items-center mb-6">
         <div className="w-full flex justify-between items-center mb-2 px-4 md:px-8">
-          {/* Auth Status Display - For Debugging */}
+          {/* Auth Status Display */}
           <div className="text-xs p-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
-             Auth Status: {authStatusMessage} {currentUserUID && `(UID: ${currentUserUID.substring(0,10)}...)`}
+             Auth Status: {authStatusMessage}
           </div>
 
           {userId && userEmail ? (
@@ -262,9 +261,9 @@ export default function BannerGeneratorPage() {
             onSaveBanner={handleSaveBanner}
             isUserAuthenticated={!!userId}
           />
-          {userId && ( // Only show SocialLinksEditor if user is logged in
-            <SocialLinksEditor userId={userId} />
-          )}
+          {/* {userId && ( // Only show SocialLinksEditor if user is logged in
+            <SocialLinksEditor userId={userId} /> // Removed component
+          )} */}
         </div>
 
         <div className="lg:col-span-2 space-y-6">

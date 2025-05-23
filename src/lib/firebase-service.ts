@@ -20,7 +20,7 @@ import {
   updateDoc,
   getDoc 
 } from 'firebase/firestore';
-import type { BannerData, SavedBannerData, AiContentData, AmazonContentData, SocialLinks, UserProfile } from '@/lib/types';
+import type { BannerData, SavedBannerData, AiContentData, AmazonContentData, UserProfile } from '@/lib/types'; // Removed SocialLinks
 
 // --- Authentication ---
 export const emailPasswordSignUp = async (auth: Auth, email: string, password: string): Promise<UserCredential> => {
@@ -36,23 +36,8 @@ export const appSignOut = async (auth: Auth): Promise<void> => {
 };
 
 // --- User Profile & Social Links ---
-export const updateUserSocialLinks = async (userId: string, socialLinks: SocialLinks): Promise<void> => {
-  if (!userId) throw new Error("User not authenticated.");
-  const userDocRef = doc(db, `users/${userId}`);
-  // Use updateDoc to avoid overwriting other fields like isAdmin, email, createdAt
-  await updateDoc(userDocRef, { socialLinks }); 
-};
-
-export const getUserSocialLinks = async (userId: string): Promise<SocialLinks | undefined> => {
-  if (!userId) return undefined;
-  const userDocRef = doc(db, `users/${userId}`);
-  const docSnap = await getDoc(userDocRef);
-  if (docSnap.exists()) {
-    const userData = docSnap.data() as UserProfile;
-    return userData.socialLinks;
-  }
-  return undefined;
-};
+// Removed updateUserSocialLinks
+// Removed getUserSocialLinks
 
 // --- Banners ---
 export const saveBannerToFirestore = async (userId: string, bannerData: BannerData): Promise<string> => {

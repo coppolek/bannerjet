@@ -52,18 +52,13 @@ export interface AmazonContentData {
   sharedAt?: string;
 }
 
-export interface SocialLinks {
-  twitter?: string;
-  linkedin?: string;
-  github?: string;
-  website?: string;
-}
+// Removed SocialLinks interface
 
 export interface UserProfile {
   email: string;
   isAdmin: boolean;
   createdAt: string | any; // Allow for serverTimestamp initially
-  socialLinks?: SocialLinks;
+  // socialLinks?: SocialLinks; // Removed socialLinks from UserProfile
 }
 
 
