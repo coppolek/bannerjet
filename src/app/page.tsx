@@ -8,7 +8,7 @@ import { AiFeaturesPanel } from '@/components/ai-features-panel';
 import { SavedBannersPanel } from '@/components/saved-banners-panel';
 import { ShareModal } from '@/components/share-modal';
 import { Button } from "@/components/ui/button";
-import { Loader2, LayoutGrid } from "lucide-react";
+import { Loader2, LayoutGrid, UserCircle, AlertTriangle } from "lucide-react";
 import { useApp } from "@/providers/app-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { BannerData, SavedBannerData, BannerIdea, AiContentData, AmazonContentData } from "@/lib/types";
@@ -55,14 +55,9 @@ export default function BannerGeneratorPage() {
     }
   }, [userId, toast]);
 
-  // Effect to load shared content if available from AppProvider
   useEffect(() => {
     if (initialAiContent) {
-      // Logic to integrate initialAiContent into the AI Features Panel state
-      // This might involve passing down setters or using a more complex state management
       toast({ title: "Shared Content Loaded", description: "AI content has been loaded from the shared link." });
-      // Example: if AiFeaturesPanel managed its own state internally, you'd need a way to set it.
-      // For now, we can assume page.tsx controls parts of this or AiFeaturesPanel handles it.
     }
     if (initialAmazonContent) {
       toast({ title: "Shared Content Loaded", description: "Amazon AI content has been loaded." });
@@ -120,17 +115,15 @@ export default function BannerGeneratorPage() {
       description: idea.descriptionSuggestion,
       buttonText: idea.ctaSuggestion,
     }));
-    // Potentially set image URL based on visualConcept if image generation from concept existed
-    // setBannerData(prev => ({ ...prev, imageUrl: `https://placehold.co/600x300.png?text=${encodeURIComponent(idea.visualConcept)}`}));
     toast({ title: "Idea Applied!", description: `Applied "${idea.ideaName}" to banner settings.` });
-    setPreviewVisible(true); // Auto-generate preview when idea is applied
+    setPreviewVisible(true); 
   };
 
   const handleShareContent = async (type: "general" | "amazon", data: any) => {
-    console.log("[handleShareContent] Initiated. Type:", type, "User ID:", userId);
+    console.log("[handleShareContent] Initiated. Type:", type, "User ID:", userId, "App ID:", appId);
     if (!userId) {
-      console.warn("[handleShareContent] User ID is null. Aborting share.");
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to share content." });
+      console.warn("[handleShareContent] User ID is null. Aborting share. User must be authenticated.");
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to share content. Please wait or refresh." });
       return;
     }
     try {
@@ -154,7 +147,7 @@ export default function BannerGeneratorPage() {
       toast({ title: "Content Ready to Share!", description: "Link generated for sharing." });
       console.log("[handleShareContent] Share modal should be visible.");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("[handleShareContent] Error during sharing process. Raw error object:", error);
       let errorMessage = "An unknown error occurred while sharing.";
       if (error instanceof Error) {
@@ -172,14 +165,14 @@ export default function BannerGeneratorPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading BannerForge AI...</p>
+        <p className="text-muted-foreground">Loading BannerForge AI & Authenticating...</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 p-4 md:p-8">
-      <header className="text-center mb-10">
+      <header className="text-center mb-6">
         <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-3">
           BannerForge AI
         </h1>
@@ -187,6 +180,26 @@ export default function BannerGeneratorPage() {
           Craft stunning, AI-powered banners and marketing content with ease.
         </p>
       </header>
+
+      <div className="max-w-md mx-auto mb-6 p-3 border rounded-lg shadow-sm bg-card text-card-foreground">
+        <h3 className="text-sm font-semibold mb-1 text-center">Authentication Status:</h3>
+        {isLoadingAuth ? (
+          <div className="flex items-center justify-center text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <span>Authenticating...</span>
+          </div>
+        ) : userId ? (
+          <div className="flex items-center justify-center text-green-600">
+            <UserCircle className="h-5 w-5 mr-2" />
+            <span>Authenticated! User ID: <code className="text-xs bg-muted p-1 rounded">{userId.substring(0, 10)}...</code></span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center text-red-600">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <span>Not Authenticated. Sharing will be disabled.</span>
+          </div>
+        )}
+      </div>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">

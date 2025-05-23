@@ -40,10 +40,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
-    console.log("[AppProvider] useEffect for onAuthStateChanged starting.");
+    console.log("[AppProvider] useEffect for onAuthStateChanged mounting. Initial isLoadingAuth:", isLoadingAuth);
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (currentUser) => {
       console.log(
-        "[AppProvider] onAuthStateChanged triggered. currentUser:",
+        "[AppProvider] onAuthStateChanged triggered. currentUser UID:",
         currentUser ? currentUser.uid : "null",
         "isAnonymous:",
         currentUser ? currentUser.isAnonymous : "N/A"
@@ -96,23 +96,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.error("[AppProvider] Error loading shared Amazon AI content:", error);
           }
         }
-        setIsLoadingAuth(false); // Auth state resolved, we have a user
+        console.log("[AppProvider] Auth state resolved (user found). Setting isLoadingAuth to false.");
+        setIsLoadingAuth(false); 
       } else {
         console.log(
           "[AppProvider] currentUser is null. Attempting anonymous sign-in."
         );
         try {
-          await signInAnonymously(firebaseAuth);
+          const userCredential = await signInAnonymously(firebaseAuth);
           console.log(
-            "[AppProvider] Anonymous sign-in attempt finished. onAuthStateChanged will re-trigger if successful."
+            "[AppProvider] Anonymous sign-in successful. User UID:", userCredential.user.uid,
+            "onAuthStateChanged will re-trigger with this user."
           );
-          // If successful, onAuthStateChanged runs again, and the (currentUser) block will set isLoadingAuth = false.
-          // If it fails, the catch block below will set isLoadingAuth = false.
+          // onAuthStateChanged will run again and the (currentUser) block will set isLoadingAuth = false.
+          // No need to set isLoadingAuth to false here, as the re-trigger will handle it.
         } catch (error) {
           console.error("[AppProvider] Anonymous sign-in failed:", error);
           setUser(null);
           setUserId(null);
-          setIsLoadingAuth(false); // Auth attempt (anonymous) failed, so stop loading.
+          console.log("[AppProvider] Auth attempt (anonymous sign-in) failed. Setting isLoadingAuth to false.");
+          setIsLoadingAuth(false); 
         }
       }
     });
@@ -121,7 +124,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.log("[AppProvider] Unsubscribing from onAuthStateChanged.");
       unsubscribe();
     };
-  }, []); // Empty dependency array is correct for onAuthStateChanged
+  }, []); 
 
   const contextValue: AppContextType = {
     firebaseApp,
