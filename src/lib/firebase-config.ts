@@ -24,7 +24,7 @@ if (process.env.NODE_ENV === 'development') {
 
   if (firebaseEnvIssues) {
     console.error(
-      "Firebase Configuration Error: " + firebaseEnvIssues +
+      "Firebase Configuration Error (Initial Check): " + firebaseEnvIssues +
       "Please ensure all required Firebase environment variables are set correctly in your .env file (located in the project root), " +
       "that they are prefixed with NEXT_PUBLIC_, and that you have RESTARTED your Next.js development server after making changes."
     );
@@ -35,9 +35,9 @@ if (process.env.NODE_ENV === 'development') {
     } else if (apiKey === "") {
       apiKeyStatus = 'Exists but is an EMPTY STRING!';
     }
-    console.log('Firebase API Key from .env:', apiKeyStatus);
-    console.log('Firebase Project ID from .env:', projectId || 'MISSING or undefined!');
-    console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
+    console.log('Firebase API Key from .env (Initial Check):', apiKeyStatus);
+    console.log('Firebase Project ID from .env (Initial Check):', projectId || 'MISSING or undefined!');
+    console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR - Initial Check):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
   }
 }
 
@@ -50,19 +50,37 @@ const firebaseConfig = {
   appId: appIdEnv, // Use the value read from .env
 };
 
-// Explicit check before initializing Firebase App
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  const message = `Critical Firebase config missing: API Key or Project ID is undefined before Firebase initialization. API Key loaded: ${!!firebaseConfig.apiKey}, Project ID loaded: ${!!firebaseConfig.projectId}. Please check your .env file and ensure the Next.js server was restarted.`;
-  console.error(message);
+// More aggressive check immediately after constructing firebaseConfig
+if (typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() === "" ||
+    typeof firebaseConfig.projectId !== 'string' || firebaseConfig.projectId.trim() === "") {
+  const errorMessage = `
+    ======================================================================================
+    CRITICAL Firebase Configuration Error (Pre-Initialization):
+    NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing, empty, or not a string.
+    - API Key Raw Value: '${apiKey}' (Type: ${typeof apiKey})
+    - Project ID Raw Value: '${projectId}' (Type: ${typeof projectId})
+
+    Please ensure:
+    1. Your .env file is located in the ROOT directory of your project.
+    2. It contains the correct, non-empty values for ALL NEXT_PUBLIC_FIREBASE_... variables.
+       (Copy them directly from your Firebase project settings).
+    3. You have RESTARTED your Next.js development server (e.g., stop 'npm run dev' and run it again).
+
+    Firebase CANNOT be initialized with these values. The application will likely fail.
+    ======================================================================================`;
+  console.error(errorMessage);
+  // Note: Firebase will still attempt to initialize and throw its own error,
+  // but this log should make the root cause clearer if it's an .env loading issue.
 }
 
-function createFirebaseApp(config: object): FirebaseApp {
+
+function createFirebaseApp(config: { apiKey?: string; projectId?: string; [key: string]: any }): FirebaseApp {
   try {
     return getApp();
   } catch {
-    // @ts-ignore - apiKey and projectId could be undefined if .env is not set
-    if (!config.apiKey || !config.projectId) {
-        console.warn("Attempting to initialize Firebase with missing API Key or Project ID. This will likely fail.");
+    if (typeof config.apiKey !== 'string' || config.apiKey.trim() === "" ||
+        typeof config.projectId !== 'string' || config.projectId.trim() === "") {
+      console.warn("createFirebaseApp: Attempting to initialize Firebase with missing or empty API Key or Project ID. This will likely fail. Config received:", config);
     }
     return initializeApp(config);
   }
