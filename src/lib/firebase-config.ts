@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBFTqiC1gXsIHR2pnA9Qxbt3DEQ5QSb5XQ",
   authDomain: "banner-c9919.firebaseapp.com",
   projectId: "banner-c9919",
-  storageBucket: "banner-c9919.appspot.com", // Standard format
+  storageBucket: "banner-c9919.firebasestorage.app", // Corrected based on screenshot
   messagingSenderId: "957263707086",
   appId: "1:957263707086:web:151aec04a33e92eabd499f",
   measurementId: "G-KD707SRJRM"
