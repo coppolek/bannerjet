@@ -7,8 +7,9 @@ import { BannerPreviewPanel } from '@/components/banner-preview-panel';
 import { AiFeaturesPanel } from '@/components/ai-features-panel';
 import { SavedBannersPanel } from '@/components/saved-banners-panel';
 import { ShareModal } from '@/components/share-modal';
+import { AuthModal } from '@/components/auth-modal'; // Import AuthModal
 import { Button } from "@/components/ui/button";
-import { Loader2, LayoutGrid, UserCircle, AlertTriangle } from "lucide-react";
+import { Loader2, UserCircle, LogIn, LogOut, AlertTriangle } from "lucide-react";
 import { useApp } from "@/providers/app-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { BannerData, SavedBannerData, BannerIdea, AiContentData, AmazonContentData } from "@/lib/types";
@@ -22,7 +23,18 @@ import {
 } from '@/lib/firebase-service';
 
 export default function BannerGeneratorPage() {
-  const { userId, isLoadingAuth, appId, initialAiContent, initialAmazonContent } = useApp();
+  const { 
+    userId, 
+    userEmail,
+    isLoadingAuth, 
+    appId, 
+    initialAiContent, 
+    initialAmazonContent,
+    isAuthModalOpen,
+    openAuthModal,
+    closeAuthModal,
+    handleSignOut
+  } = useApp();
   const { toast } = useToast();
 
   const [bannerData, setBannerData] = useState<BannerData>(defaultBannerData);
@@ -44,13 +56,14 @@ export default function BannerGeneratorPage() {
           setIsLoadingBanners(false);
         },
         (error) => {
-          toast({ variant: "destructive", title: "Error", description: "Failed to load saved banners." });
+          console.error("[Page] Error loading saved banners:", error);
+          toast({ variant: "destructive", title: "Error Loading Banners", description: "Could not fetch your saved banners. Please try again later." });
           setIsLoadingBanners(false);
         }
       );
       return () => unsubscribe();
     } else {
-      setSavedBanners([]);
+      setSavedBanners([]); // Clear banners if user logs out
       setIsLoadingBanners(false);
     }
   }, [userId, toast]);
@@ -64,7 +77,6 @@ export default function BannerGeneratorPage() {
     }
   }, [initialAiContent, initialAmazonContent, toast]);
 
-
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const val = type === 'number' ? parseInt(value) : value;
@@ -77,15 +89,16 @@ export default function BannerGeneratorPage() {
 
   const handleSaveBanner = async () => {
     if (!userId) {
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to save banners." });
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please log in or register to save banners." });
+      openAuthModal();
       return;
     }
     try {
       await saveBannerToFirestore(userId, bannerData);
       toast({ title: "Success", description: "Banner saved successfully!" });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to save banner." });
-      console.error("Error saving banner:", error);
+      toast({ variant: "destructive", title: "Error Saving Banner", description: (error as Error).message || "Failed to save banner." });
+      console.error("[Page] Error saving banner:", error);
     }
   };
 
@@ -97,15 +110,16 @@ export default function BannerGeneratorPage() {
 
   const handleDeleteBanner = async (bannerId: string) => {
     if (!userId) {
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to delete banners." });
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please log in or register to delete banners." });
+      openAuthModal();
       return;
     }
     try {
       await deleteBannerFromFirestore(userId, bannerId);
       toast({ title: "Success", description: "Banner deleted successfully!" });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete banner." });
-      console.error("Error deleting banner:", error);
+      toast({ variant: "destructive", title: "Error Deleting Banner", description: (error as Error).message || "Failed to delete banner." });
+      console.error("[Page] Error deleting banner:", error);
     }
   };
   
@@ -120,14 +134,15 @@ export default function BannerGeneratorPage() {
   };
 
   const handleShareContent = async (type: "general" | "amazon", data: any) => {
-    console.log("[handleShareContent] Initiated. Type:", type, "User ID:", userId, "App ID:", appId);
+    console.log("[Page handleShareContent] Initiated. Type:", type, "User ID:", userId, "App ID:", appId);
     if (!userId) {
-      console.warn("[handleShareContent] User ID is null. Aborting share. User must be authenticated.");
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to share content. Please wait or refresh." });
+      console.warn("[Page handleShareContent] User ID is null. Aborting share. User must be authenticated.");
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please log in or register to share content." });
+      openAuthModal();
       return;
     }
     try {
-      console.log("[handleShareContent] Attempting to save to Firestore. Data:", data);
+      console.log("[Page handleShareContent] Attempting to save to Firestore. Data:", data);
       let docId = "";
       let shareParam = "";
 
@@ -138,17 +153,17 @@ export default function BannerGeneratorPage() {
         docId = await shareAmazonContentToFirestore(userId, data as Omit<AmazonContentData, 'id' | 'sharedBy' | 'sharedAt'>);
         shareParam = "sharedAmazonContentId";
       }
-      console.log("[handleShareContent] Firestore save successful. Doc ID:", docId);
+      console.log("[Page handleShareContent] Firestore save successful. Doc ID:", docId);
       
       const shareableLink = `${window.location.origin}${window.location.pathname}?${shareParam}=${docId}`;
-      console.log("[handleShareContent] Generated shareable link:", shareableLink);
+      console.log("[Page handleShareContent] Generated shareable link:", shareableLink);
       setCurrentShareUrl(shareableLink);
       setShowShareModal(true);
       toast({ title: "Content Ready to Share!", description: "Link generated for sharing." });
-      console.log("[handleShareContent] Share modal should be visible.");
+      console.log("[Page handleShareContent] Share modal should be visible.");
 
     } catch (error: any) {
-      console.error("[handleShareContent] Error during sharing process. Raw error object:", error);
+      console.error("[Page handleShareContent] Error during sharing process. Raw error object:", error);
       let errorMessage = "An unknown error occurred while sharing.";
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -165,41 +180,45 @@ export default function BannerGeneratorPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading BannerForge AI & Authenticating...</p>
+        <p className="text-muted-foreground">Loading BannerForge AI & Checking Authentication...</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 p-4 md:p-8">
-      <header className="text-center mb-6">
-        <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-3">
+      <header className="flex flex-col items-center mb-6">
+        <div className="w-full flex justify-end items-center mb-2 pr-4 md:pr-8">
+          {userId && userEmail ? (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                Logged in as: <strong className="text-foreground">{userEmail}</strong>
+              </span>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button variant="default" size="sm" onClick={openAuthModal}>
+              <LogIn className="mr-2 h-4 w-4" />
+              Login / Register
+            </Button>
+          )}
+        </div>
+        <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-1">
           BannerForge AI
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
           Craft stunning, AI-powered banners and marketing content with ease.
         </p>
-      </header>
-
-      <div className="max-w-md mx-auto mb-6 p-3 border rounded-lg shadow-sm bg-card text-card-foreground">
-        <h3 className="text-sm font-semibold mb-1 text-center">Authentication Status:</h3>
-        {isLoadingAuth ? (
-          <div className="flex items-center justify-center text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            <span>Authenticating...</span>
-          </div>
-        ) : userId ? (
-          <div className="flex items-center justify-center text-green-600">
-            <UserCircle className="h-5 w-5 mr-2" />
-            <span>Authenticated! User ID: <code className="text-xs bg-muted p-1 rounded">{userId.substring(0, 10)}...</code></span>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center text-red-600">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            <span>Not Authenticated. Sharing will be disabled.</span>
-          </div>
+        {!userId && !isLoadingAuth && (
+           <div className="mt-3 p-2 text-sm bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md flex items-center">
+             <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
+             <span>Currently not authenticated. Login/Register to save banners and share content.</span>
+           </div>
         )}
-      </div>
+      </header>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
@@ -240,6 +259,7 @@ export default function BannerGeneratorPage() {
         onClose={() => setShowShareModal(false)}
         shareUrl={currentShareUrl}
       />
+      <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
     </div>
   );
 }
