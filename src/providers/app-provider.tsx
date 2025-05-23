@@ -32,7 +32,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Start as true
   
   const [initialBannerData, setInitialBannerData] = useState<Partial<BannerData> | undefined>(undefined);
   const [initialAiContent, setInitialAiContent] = useState<Partial<AiContentData> | undefined>(undefined);
@@ -40,9 +40,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
+    console.log("[AppProvider] useEffect for onAuthStateChanged starting.");
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (currentUser) => {
-      setIsLoadingAuth(true);
+      console.log(
+        "[AppProvider] onAuthStateChanged triggered. currentUser:",
+        currentUser ? currentUser.uid : "null",
+        "isAnonymous:",
+        currentUser ? currentUser.isAnonymous : "N/A"
+      );
+
       if (currentUser) {
+        console.log(
+          "[AppProvider] currentUser exists. Setting user and userId:",
+          currentUser.uid
+        );
         setUser(currentUser);
         setUserId(currentUser.uid);
         
@@ -56,14 +67,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const sharedAiContentSnap = await getDoc(sharedAiContentDocRef);
             if (sharedAiContentSnap.exists()) {
               const data = sharedAiContentSnap.data() as AiContentData;
+              console.log("[AppProvider] Loaded shared AI content:", data);
               setInitialAiContent(data);
-              // Clear from URL
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.delete('sharedAiContentId');
               window.history.replaceState({}, document.title, newUrl.toString());
+            } else {
+              console.warn("[AppProvider] Shared AI content ID found in URL, but no document found in Firestore:", sharedAiContentId);
             }
           } catch (error) {
-            console.error("Error loading shared AI content:", error);
+            console.error("[AppProvider] Error loading shared AI content:", error);
           }
         } else if (sharedAmazonContentId) {
           try {
@@ -71,32 +84,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const sharedAmazonContentSnap = await getDoc(sharedAmazonContentDocRef);
             if (sharedAmazonContentSnap.exists()) {
               const data = sharedAmazonContentSnap.data() as AmazonContentData;
+              console.log("[AppProvider] Loaded shared Amazon content:", data);
               setInitialAmazonContent(data);
-               // Clear from URL
               const newUrl = new URL(window.location.href);
               newUrl.searchParams.delete('sharedAmazonContentId');
               window.history.replaceState({}, document.title, newUrl.toString());
+            } else {
+               console.warn("[AppProvider] Shared Amazon content ID found in URL, but no document found in Firestore:", sharedAmazonContentId);
             }
           } catch (error) {
-            console.error("Error loading shared Amazon AI content:", error);
+            console.error("[AppProvider] Error loading shared Amazon AI content:", error);
           }
         }
-
+        setIsLoadingAuth(false); // Auth state resolved, we have a user
       } else {
-        // Not signed in, try anonymous sign-in
+        console.log(
+          "[AppProvider] currentUser is null. Attempting anonymous sign-in."
+        );
         try {
           await signInAnonymously(firebaseAuth);
+          console.log(
+            "[AppProvider] Anonymous sign-in attempt finished. onAuthStateChanged will re-trigger if successful."
+          );
+          // If successful, onAuthStateChanged runs again, and the (currentUser) block will set isLoadingAuth = false.
+          // If it fails, the catch block below will set isLoadingAuth = false.
         } catch (error) {
-          console.error("Anonymous sign-in failed:", error);
+          console.error("[AppProvider] Anonymous sign-in failed:", error);
           setUser(null);
           setUserId(null);
+          setIsLoadingAuth(false); // Auth attempt (anonymous) failed, so stop loading.
         }
       }
-      setIsLoadingAuth(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      console.log("[AppProvider] Unsubscribing from onAuthStateChanged.");
+      unsubscribe();
+    };
+  }, []); // Empty dependency array is correct for onAuthStateChanged
 
   const contextValue: AppContextType = {
     firebaseApp,
