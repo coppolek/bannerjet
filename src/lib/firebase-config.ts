@@ -1,99 +1,65 @@
 
-import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
+import { initializeApp, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator, type Firestore } from "firebase/firestore";
+import { getAnalytics, type Analytics } from "firebase/analytics";
 
-// Read all Firebase environment variables
-const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-const appIdEnv = process.env.NEXT_PUBLIC_FIREBASE_APP_ID; // Renamed to avoid conflict with exported APP_ID
-const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
-
-if (process.env.NODE_ENV === 'development') {
-  let firebaseEnvIssues = "";
-  if (!apiKey) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_API_KEY is missing. ";
-  if (!authDomain) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is missing. ";
-  if (!projectId) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing. ";
-  // Optional, but good to note if missing
-  if (!storageBucket) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is missing (often optional). ";
-  if (!messagingSenderId) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID is missing (often optional). ";
-  if (!appIdEnv) firebaseEnvIssues += "NEXT_PUBLIC_FIREBASE_APP_ID is missing (often optional). ";
-
-  if (firebaseEnvIssues) {
-    console.error(
-      "Firebase Configuration Error (Initial Check): " + firebaseEnvIssues +
-      "Please ensure all required Firebase environment variables are set correctly in your .env file (located in the project root), " +
-      "that they are prefixed with NEXT_PUBLIC_, and that you have RESTARTED your Next.js development server after making changes."
-    );
-  } else {
-    let apiKeyStatus = 'MISSING or undefined!';
-    if (apiKey && apiKey.trim() !== "") {
-      apiKeyStatus = `Exists (starts with: ${apiKey.substring(0, 5)}...)`;
-    } else if (apiKey === "") {
-      apiKeyStatus = 'Exists but is an EMPTY STRING!';
-    }
-    console.log('Firebase API Key from .env (Initial Check):', apiKeyStatus);
-    console.log('Firebase Project ID from .env (Initial Check):', projectId || 'MISSING or undefined!');
-    console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR - Initial Check):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
-  }
-}
-
+// Your web app's Firebase configuration (as provided by user)
 const firebaseConfig = {
-  apiKey: apiKey,
-  authDomain: authDomain,
-  projectId: projectId,
-  storageBucket: storageBucket,
-  messagingSenderId: messagingSenderId,
-  appId: appIdEnv, // Use the value read from .env
+  apiKey: "AIzaSyBFTqiC1gXsIHR2pnA9Qxbt3DEQ5QSb5XQ",
+  authDomain: "banner-c9919.firebaseapp.com",
+  projectId: "banner-c9919",
+  storageBucket: "banner-c9919.appspot.com", // Corrected from .firebasestorage.app
+  messagingSenderId: "957263707086",
+  appId: "1:957263707086:web:151aec04a33e92eabd499f",
+  measurementId: "G-KD707SRJRM"
 };
 
-// More aggressive check immediately after constructing firebaseConfig
+// Check if critical Firebase config values are present (from hardcoded config)
 if (typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() === "" ||
     typeof firebaseConfig.projectId !== 'string' || firebaseConfig.projectId.trim() === "") {
   const errorMessage = `
     ======================================================================================
-    CRITICAL Firebase Configuration Error (Pre-Initialization):
-    NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing, empty, or not a string.
-    - API Key Raw Value: '${apiKey}' (Type: ${typeof apiKey})
-    - Project ID Raw Value: '${projectId}' (Type: ${typeof projectId})
+    CRITICAL Firebase Configuration Error (Hardcoded):
+    The hardcoded firebaseConfig object is missing a valid apiKey or projectId.
+    - API Key Value: '${firebaseConfig.apiKey}'
+    - Project ID Value: '${firebaseConfig.projectId}'
 
-    Please ensure:
-    1. Your .env file is located in the ROOT directory of your project.
-    2. It contains the correct, non-empty values for ALL NEXT_PUBLIC_FIREBASE_... variables.
-       (Copy them directly from your Firebase project settings).
-    3. You have RESTARTED your Next.js development server (e.g., stop 'npm run dev' and run it again).
-
+    Please ensure the hardcoded firebaseConfig in src/lib/firebase-config.ts is correct.
     Firebase CANNOT be initialized with these values. The application will likely fail.
     ======================================================================================`;
   console.error(errorMessage);
+  // Potentially throw an error here or handle appropriately for your app's lifecycle
 }
 
-
-function createFirebaseApp(config: { apiKey?: string; projectId?: string; [key: string]: any }): FirebaseApp {
+// Initialize Firebase App (singleton pattern)
+function createFirebaseApp(): FirebaseApp {
   try {
     return getApp();
   } catch {
-    if (typeof config.apiKey !== 'string' || config.apiKey.trim() === "" ||
-        typeof config.projectId !== 'string' || config.projectId.trim() === "") {
-      console.warn("createFirebaseApp: Attempting to initialize Firebase with missing or empty API Key or Project ID. This will likely fail. Config received:", JSON.parse(JSON.stringify(config)));
-    } else {
-      // Log the config being used if it seems valid but we are still in the catch block (meaning getApp() failed)
-      console.log("[Firebase Initialization Attempt in createFirebaseApp catch block] Using config:", JSON.parse(JSON.stringify(config)));
-    }
-    return initializeApp(config);
+    console.log("[Firebase Initialization Attempt] Initializing with hardcoded config:", JSON.parse(JSON.stringify(firebaseConfig)));
+    return initializeApp(firebaseConfig);
   }
 }
 
-const firebaseApp: FirebaseApp = createFirebaseApp(firebaseConfig);
+const firebaseApp: FirebaseApp = createFirebaseApp();
 const auth: Auth = getAuth(firebaseApp);
 const db: Firestore = getFirestore(firebaseApp);
+let analytics: Analytics | null = null;
 
-// Export the App ID (can be the one from .env or a fallback)
-export const APP_ID = appIdEnv || "bannerforge-ai-app";
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(firebaseApp);
+}
 
+// Export the App ID from the hardcoded config
+export const APP_ID = firebaseConfig.appId;
+
+// Emulator connection logic (still uses .env for this)
+const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
+
+if (process.env.NODE_ENV === "development") {
+  console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
+}
 
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined" && useEmulator === "true") {
   // @ts-ignore - emulatorConfig is not part of the public type but used internally by Firebase
@@ -106,7 +72,7 @@ if (process.env.NODE_ENV === "development" && typeof window !== "undefined" && u
     }
   }
   // @ts-ignore - INTERNAL.settings.host is not part of public type
-  if (!db.INTERNAL?.settings?.host) { // Added optional chaining for safety
+  if (!db.INTERNAL?.settings?.host) { 
      try {
       console.log("Connecting to Firebase Firestore Emulator (localhost:8080)");
       connectFirestoreEmulator(db, "localhost", 8080);
@@ -116,4 +82,4 @@ if (process.env.NODE_ENV === "development" && typeof window !== "undefined" && u
   }
 }
 
-export { firebaseApp, auth, db };
+export { firebaseApp, auth, db, analytics };
