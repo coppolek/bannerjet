@@ -29,9 +29,15 @@ if (process.env.NODE_ENV === 'development') {
       "that they are prefixed with NEXT_PUBLIC_, and that you have RESTARTED your Next.js development server after making changes."
     );
   } else {
-    // All critical keys seem present, log a portion for verification
-    console.log('Firebase API Key from .env:', apiKey ? `Exists (starts with: ${apiKey.substring(0, 5)}...)` : 'MISSING!');
-    console.log('Firebase Project ID from .env:', projectId || 'MISSING!');
+    let apiKeyStatus = 'MISSING or undefined!';
+    if (apiKey && apiKey.trim() !== "") {
+      apiKeyStatus = `Exists (starts with: ${apiKey.substring(0, 5)}...)`;
+    } else if (apiKey === "") {
+      apiKeyStatus = 'Exists but is an EMPTY STRING!';
+    }
+    console.log('Firebase API Key from .env:', apiKeyStatus);
+    console.log('Firebase Project ID from .env:', projectId || 'MISSING or undefined!');
+    console.log('Using Firebase Emulators (.env NEXT_PUBLIC_USE_FIREBASE_EMULATOR):', useEmulator === "true" ? "Yes" : "No (or not set to 'true')");
   }
 }
 
@@ -48,9 +54,6 @@ const firebaseConfig = {
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   const message = `Critical Firebase config missing: API Key or Project ID is undefined before Firebase initialization. API Key loaded: ${!!firebaseConfig.apiKey}, Project ID loaded: ${!!firebaseConfig.projectId}. Please check your .env file and ensure the Next.js server was restarted.`;
   console.error(message);
-  // It's generally better to let Firebase SDK throw its specific error if config is truly bad,
-  // rather than throwing a new error here that might mask the original Firebase error.
-  // But this console error provides an earlier warning.
 }
 
 function createFirebaseApp(config: object): FirebaseApp {
