@@ -69,8 +69,6 @@ if (typeof firebaseConfig.apiKey !== 'string' || firebaseConfig.apiKey.trim() ==
     Firebase CANNOT be initialized with these values. The application will likely fail.
     ======================================================================================`;
   console.error(errorMessage);
-  // Note: Firebase will still attempt to initialize and throw its own error,
-  // but this log should make the root cause clearer if it's an .env loading issue.
 }
 
 
@@ -80,7 +78,10 @@ function createFirebaseApp(config: { apiKey?: string; projectId?: string; [key: 
   } catch {
     if (typeof config.apiKey !== 'string' || config.apiKey.trim() === "" ||
         typeof config.projectId !== 'string' || config.projectId.trim() === "") {
-      console.warn("createFirebaseApp: Attempting to initialize Firebase with missing or empty API Key or Project ID. This will likely fail. Config received:", config);
+      console.warn("createFirebaseApp: Attempting to initialize Firebase with missing or empty API Key or Project ID. This will likely fail. Config received:", JSON.parse(JSON.stringify(config)));
+    } else {
+      // Log the config being used if it seems valid but we are still in the catch block (meaning getApp() failed)
+      console.log("[Firebase Initialization Attempt in createFirebaseApp catch block] Using config:", JSON.parse(JSON.stringify(config)));
     }
     return initializeApp(config);
   }
