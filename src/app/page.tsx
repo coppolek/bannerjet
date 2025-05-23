@@ -127,11 +127,14 @@ export default function BannerGeneratorPage() {
   };
 
   const handleShareContent = async (type: "general" | "amazon", data: any) => {
+    console.log("[handleShareContent] Initiated. Type:", type, "User ID:", userId);
     if (!userId) {
+      console.warn("[handleShareContent] User ID is null. Aborting share.");
       toast({ variant: "destructive", title: "Authentication Error", description: "You must be signed in to share content." });
       return;
     }
     try {
+      console.log("[handleShareContent] Attempting to save to Firestore. Data:", data);
       let docId = "";
       let shareParam = "";
 
@@ -142,15 +145,26 @@ export default function BannerGeneratorPage() {
         docId = await shareAmazonContentToFirestore(userId, data as Omit<AmazonContentData, 'id' | 'sharedBy' | 'sharedAt'>);
         shareParam = "sharedAmazonContentId";
       }
+      console.log("[handleShareContent] Firestore save successful. Doc ID:", docId);
       
       const shareableLink = `${window.location.origin}${window.location.pathname}?${shareParam}=${docId}`;
+      console.log("[handleShareContent] Generated shareable link:", shareableLink);
       setCurrentShareUrl(shareableLink);
       setShowShareModal(true);
       toast({ title: "Content Ready to Share!", description: "Link generated for sharing." });
+      console.log("[handleShareContent] Share modal should be visible.");
 
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to share content." });
-      console.error("Error sharing content:", error);
+      console.error("[handleShareContent] Error during sharing process. Raw error object:", error);
+      let errorMessage = "An unknown error occurred while sharing.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string') {
+        errorMessage = (error as any).message;
+      }
+      toast({ variant: "destructive", title: "Error Sharing Content", description: errorMessage });
     }
   };
 

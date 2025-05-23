@@ -60,7 +60,7 @@ export const shareAiContentToFirestore = async (userId: string, contentData: Omi
   const sharedAiContentCollectionRef = collection(db, `artifacts/${APP_ID}/public/sharedAiContent`);
   const docRef = await addDoc(sharedAiContentCollectionRef, {
     ...contentData,
-    sharedBy: userId || "anonymous",
+    sharedBy: userId, // Use userId directly, assuming it's validated by the caller
     sharedAt: serverTimestamp(),
   });
   return docRef.id;
@@ -70,7 +70,7 @@ export const shareAmazonContentToFirestore = async (userId: string, contentData:
   const sharedAmazonContentCollectionRef = collection(db, `artifacts/${APP_ID}/public/sharedAmazonContent`);
   const docRef = await addDoc(sharedAmazonContentCollectionRef, {
     ...contentData,
-    sharedBy: userId || "anonymous",
+    sharedBy: userId, // Use userId directly, assuming it's validated by the caller
     sharedAt: serverTimestamp(),
   });
   return docRef.id;
