@@ -50,7 +50,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isLoadingAdminStatus, setIsLoadingAdminStatus] = useState<boolean>(true); // Start as true
+  const [isLoadingAdminStatus, setIsLoadingAdminStatus] = useState<boolean>(true); 
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { toast } = useToast();
@@ -68,10 +68,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         "Email:", currentUser ? currentUser.email : "N/A"
       );
       
-      // Always set loading states to true at the beginning of auth change
       setIsLoadingAuth(true); 
       setIsLoadingAdminStatus(true);
-      setIsAdmin(false); // Reset admin status on auth change
+      setIsAdmin(false);
 
       if (currentUser) {
         setUser(currentUser);
@@ -94,7 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error(`[AppProvider] Error fetching admin status from ${userDocPath} for user ${currentUser.uid}:`, error);
-          toast({ variant: "destructive", title: "Error fetching user role", description: (error as Error).message || "Could not determine admin status due to a permission or network error." });
+          toast({ variant: "destructive", title: "Error Fetching User Role", description: `Could not determine admin status. Firestore Error: ${(error as Error).message}` });
           setIsAdmin(false); 
         }
         setIsLoadingAdminStatus(false);
@@ -126,15 +125,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           } catch (error) { console.error("[AppProvider] Error loading shared Amazon AI content:", error); }
         }
-      } else { // No current user
+      } else { 
         setUser(null);
         setUserId(null);
         setUserEmail(null);
         setIsAdmin(false);
-        setIsLoadingAdminStatus(false); // No admin status to load if no user
+        setIsLoadingAdminStatus(false);
         console.log("[AppProvider] No current user or user signed out.");
       }
-      setIsLoadingAuth(false); // Auth process (initial check or change) is complete
+      setIsLoadingAuth(false);
       console.log(`[AppProvider] Auth state processed. isLoadingAuth: ${isLoadingAuth}, isLoadingAdminStatus (final for this cycle): ${isLoadingAdminStatus}, isAdmin: ${isAdmin}, userId: ${userId}`);
     });
 
@@ -143,7 +142,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Removed dependencies to avoid re-runs that reset loading states prematurely
+  }, []);
 
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
@@ -155,13 +154,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       try {
         const userDocRef = doc(firebaseDb, "users", userCredential.user.uid);
-        // Check if document exists before setting to avoid overwriting isAdmin if set by other means
         const docSnap = await getDoc(userDocRef);
         if (!docSnap.exists()) {
+            console.log(`[AppProvider] User profile for ${userCredential.user.uid} does not exist. Attempting to create.`);
             await setFirestoreDoc(userDocRef, {
               email: userCredential.user.email,
-              isAdmin: false, // Default to not admin
-              createdAt: serverTimestamp() as Timestamp // Use Timestamp for type consistency
+              isAdmin: false, 
+              createdAt: serverTimestamp() as Timestamp
             });
             console.log("[AppProvider] User profile created in Firestore for:", userCredential.user.uid);
         } else {
@@ -169,6 +168,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       } catch (profileError) {
         console.error("[AppProvider] Error ensuring user profile in Firestore:", profileError);
+        toast({ variant: "destructive", title: "User Profile Error", description: `Could not create or verify user profile during sign up. Firestore Error: ${(profileError as Error).message}`});
       }
       closeAuthModal();
       return { success: true, userCredential };
@@ -198,7 +198,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await appSignOut(firebaseAuth);
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
-      // User state will be cleared by onAuthStateChanged
     } catch (error: any) {
       console.error("[AppProvider] SignOut Error:", error);
       toast({ variant: "destructive", title: "Sign Out Failed", description: error.message || "Please try again." });
