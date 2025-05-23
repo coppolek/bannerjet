@@ -52,6 +52,21 @@ export interface AmazonContentData {
   sharedAt?: string;
 }
 
+export interface SocialLinks {
+  twitter?: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
+}
+
+export interface UserProfile {
+  email: string;
+  isAdmin: boolean;
+  createdAt: string | any; // Allow for serverTimestamp initially
+  socialLinks?: SocialLinks;
+}
+
+
 // Default values
 export const defaultBannerData: BannerData = {
   imageUrl: "https://placehold.co/300x150.png",

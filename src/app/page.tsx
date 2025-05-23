@@ -8,8 +8,9 @@ import { AiFeaturesPanel } from '@/components/ai-features-panel';
 import { SavedBannersPanel } from '@/components/saved-banners-panel';
 import { ShareModal } from '@/components/share-modal';
 import { AuthModal } from '@/components/auth-modal';
+import { SocialLinksEditor } from '@/components/social-links-editor'; // Import new component
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCircle, LogIn, LogOut, AlertTriangle, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Loader2, LogIn, LogOut, AlertTriangle, ShieldCheck, UserCircle } from "lucide-react";
 import { useApp } from "@/providers/app-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { BannerData, SavedBannerData, BannerIdea, AiContentData, AmazonContentData } from "@/lib/types";
@@ -27,8 +28,8 @@ export default function BannerGeneratorPage() {
     userId, 
     userEmail,
     isLoadingAuth, 
-    isAdmin, // Get admin status
-    isLoadingAdminStatus, // Get admin status loading state
+    isAdmin, 
+    isLoadingAdminStatus, 
     appId, 
     initialAiContent, 
     initialAmazonContent,
@@ -47,6 +48,24 @@ export default function BannerGeneratorPage() {
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [currentShareUrl, setCurrentShareUrl] = useState('');
+  
+  // Authentication status display for debugging
+  const [authStatusMessage, setAuthStatusMessage] = useState("Checking authentication...");
+  const [currentUserUID, setCurrentUserUID] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoadingAuth) {
+      setAuthStatusMessage("Authentication loading...");
+      setCurrentUserUID(null);
+    } else if (userId) {
+      setAuthStatusMessage("Authenticated");
+      setCurrentUserUID(userId);
+    } else {
+      setAuthStatusMessage("Not Authenticated. Sharing and saving will be disabled.");
+      setCurrentUserUID(null);
+    }
+  }, [isLoadingAuth, userId]);
+
 
   useEffect(() => {
     if (userId) {
@@ -65,7 +84,7 @@ export default function BannerGeneratorPage() {
       );
       return () => unsubscribe();
     } else {
-      setSavedBanners([]); // Clear banners if user logs out
+      setSavedBanners([]); 
       setIsLoadingBanners(false);
     }
   }, [userId, toast]);
@@ -151,7 +170,7 @@ export default function BannerGeneratorPage() {
       if (type === "general") {
         docId = await shareAiContentToFirestore(userId, data as Omit<AiContentData, 'id' | 'sharedBy' | 'sharedAt'>);
         shareParam = "sharedAiContentId";
-      } else { // amazon
+      } else { 
         docId = await shareAmazonContentToFirestore(userId, data as Omit<AmazonContentData, 'id' | 'sharedBy' | 'sharedAt'>);
         shareParam = "sharedAmazonContentId";
       }
@@ -178,12 +197,12 @@ export default function BannerGeneratorPage() {
     }
   };
 
-  if (isLoadingAuth || isLoadingAdminStatus) { // Check both loading states
+  if (isLoadingAuth || isLoadingAdminStatus) { 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">
-          {isLoadingAuth ? "Checking Authentication..." : "Checking Admin Status..."}
+          {isLoadingAuth ? "Authenticating..." : "Verifying admin status..."}
         </p>
       </div>
     );
@@ -192,7 +211,12 @@ export default function BannerGeneratorPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 p-4 md:p-8">
       <header className="flex flex-col items-center mb-6">
-        <div className="w-full flex justify-end items-center mb-2 pr-4 md:pr-8">
+        <div className="w-full flex justify-between items-center mb-2 px-4 md:px-8">
+          {/* Auth Status Display - For Debugging */}
+          <div className="text-xs p-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
+             Auth Status: {authStatusMessage} {currentUserUID && `(UID: ${currentUserUID.substring(0,10)}...)`}
+          </div>
+
           {userId && userEmail ? (
             <div className="flex items-center space-x-3">
               {isAdmin && (
@@ -201,7 +225,7 @@ export default function BannerGeneratorPage() {
                 </span>
               )}
               <span className="text-sm text-muted-foreground hidden sm:inline">
-                Logged in as: <strong className="text-foreground">{userEmail}</strong>
+                <UserCircle className="inline mr-1 h-4 w-4" />{userEmail}
               </span>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -221,10 +245,10 @@ export default function BannerGeneratorPage() {
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
           Craft stunning, AI-powered banners and marketing content with ease.
         </p>
-        {!userId && (
+        {!userId && !isLoadingAuth && ( // Show only if not loading and not authenticated
            <div className="mt-3 p-2 text-sm bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md flex items-center">
              <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
-             <span>Not Authenticated. Login/Register to save banners and share content. Sharing will be disabled.</span>
+             <span>Login/Register to save banners, share content, and manage social links.</span>
            </div>
         )}
       </header>
@@ -238,6 +262,9 @@ export default function BannerGeneratorPage() {
             onSaveBanner={handleSaveBanner}
             isUserAuthenticated={!!userId}
           />
+          {userId && ( // Only show SocialLinksEditor if user is logged in
+            <SocialLinksEditor userId={userId} />
+          )}
         </div>
 
         <div className="lg:col-span-2 space-y-6">
@@ -255,7 +282,7 @@ export default function BannerGeneratorPage() {
         
         <div className="lg:col-span-3">
            <AiFeaturesPanel 
-            userId={userId} // Pass userId
+            userId={userId} 
             appId={appId}
             onApplyBannerIdea={handleApplyBannerIdea}
             onShareContent={handleShareContent}
@@ -272,5 +299,3 @@ export default function BannerGeneratorPage() {
     </div>
   );
 }
-
-    
