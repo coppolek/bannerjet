@@ -7,9 +7,9 @@ import { BannerPreviewPanel } from '@/components/banner-preview-panel';
 import { AiFeaturesPanel } from '@/components/ai-features-panel';
 import { SavedBannersPanel } from '@/components/saved-banners-panel';
 import { ShareModal } from '@/components/share-modal';
-import { AuthModal } from '@/components/auth-modal'; // Import AuthModal
+import { AuthModal } from '@/components/auth-modal';
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCircle, LogIn, LogOut, AlertTriangle } from "lucide-react";
+import { Loader2, UserCircle, LogIn, LogOut, AlertTriangle, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useApp } from "@/providers/app-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { BannerData, SavedBannerData, BannerIdea, AiContentData, AmazonContentData } from "@/lib/types";
@@ -27,6 +27,8 @@ export default function BannerGeneratorPage() {
     userId, 
     userEmail,
     isLoadingAuth, 
+    isAdmin, // Get admin status
+    isLoadingAdminStatus, // Get admin status loading state
     appId, 
     initialAiContent, 
     initialAmazonContent,
@@ -176,11 +178,13 @@ export default function BannerGeneratorPage() {
     }
   };
 
-  if (isLoadingAuth) {
+  if (isLoadingAuth || isLoadingAdminStatus) { // Check both loading states
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading BannerForge AI & Checking Authentication...</p>
+        <p className="text-muted-foreground">
+          {isLoadingAuth ? "Checking Authentication..." : "Checking Admin Status..."}
+        </p>
       </div>
     );
   }
@@ -191,6 +195,11 @@ export default function BannerGeneratorPage() {
         <div className="w-full flex justify-end items-center mb-2 pr-4 md:pr-8">
           {userId && userEmail ? (
             <div className="flex items-center space-x-3">
+              {isAdmin && (
+                <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center">
+                  <ShieldCheck className="mr-1 h-3 w-3" /> Admin
+                </span>
+              )}
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 Logged in as: <strong className="text-foreground">{userEmail}</strong>
               </span>
@@ -212,10 +221,10 @@ export default function BannerGeneratorPage() {
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-center">
           Craft stunning, AI-powered banners and marketing content with ease.
         </p>
-        {!userId && !isLoadingAuth && (
+        {!userId && (
            <div className="mt-3 p-2 text-sm bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md flex items-center">
              <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
-             <span>Currently not authenticated. Login/Register to save banners and share content.</span>
+             <span>Not Authenticated. Login/Register to save banners and share content. Sharing will be disabled.</span>
            </div>
         )}
       </header>
@@ -246,7 +255,7 @@ export default function BannerGeneratorPage() {
         
         <div className="lg:col-span-3">
            <AiFeaturesPanel 
-            userId={userId}
+            userId={userId} // Pass userId
             appId={appId}
             onApplyBannerIdea={handleApplyBannerIdea}
             onShareContent={handleShareContent}
@@ -263,3 +272,5 @@ export default function BannerGeneratorPage() {
     </div>
   );
 }
+
+    
